@@ -63,3 +63,94 @@ NULL,
 'sa', --帐号 
 '' --密码 
 ```
+
+### 7.游标
+
+```
+--定义游标
+DECLARE m_cursor CURSOR SCROLL FOR
+SELECT id,state FROM @room --语句
+OPEN m_cursor              --打开游标
+DECLARE @id INT,@state INT  --游标数据存放的位置
+FETCH NEXT FROM m_cursor INTO @id,@state  --填充数据
+WHILE @@FETCH_STATUS=0 --提取成功
+BEGIN
+  IF @state=0
+  BEGIN
+    UPDATE dbo.room SET now_state=0 WHERE room_id=@id
+  END
+  FETCH NEXT FROM m_cursor INTO @id,@state
+END
+CLOSE m_cursor      --关闭游标
+DEALLOCATE m_cursor --删除游标
+```
+
+### 8.定义表变量
+
+```
+--定义表变量
+DECLARE @room TABLE(id int,state int)
+
+--插入数据
+INSERT INTO @room( id, state ) 
+SELECT room_id,CASE WHEN @end_time<start_time THEN 1 
+					   WHEN @start_time>end_time THEN 1
+					   ELSE 0 END variable FROM dbo.meeting 
+WHERE CONVERT(VARCHAR(10),start_time,23)=CONVERT(VARCHAR(10),@start_time,23)
+```
+
+### 9.xml path
+
+```
+SELECT a.meeting_id,a.title,
+(SELECT username+',' FROM @info WHERE meeting_id=a.meeting_id FOR XML PATH('')) AS userlist FROM @info a
+GROUP BY a.meeting_id,a.title
+```
+
+### 10.循环处理
+
+```
+WHILE(CHARINDEX(',',@uid)<>0)
+  BEGIN
+      SET @person=SUBSTRING(@uid,1,CHARINDEX(',',@uid)-1)
+      INSERT INTO @selectUser
+              ( username, uid )
+      SELECT username,uid FROM dbo.[user] WHERE userid=@person
+      SET @uid=STUFF(@uid,1,CHARINDEX(',',@uid),'')
+  END
+```
+
+### 11.随机大数
+
+```
+create PROC [dbo].[GetRandStr]
+(
+    @count INT,
+    @no VARCHAR(1000) OUTPUT
+)
+AS
+BEGIN
+    DECLARE @randomstr VARCHAR(1000);
+    DECLARE @charpool VARCHAR(1000);
+    DECLARE @i INT;
+    DECLARE @counter INTEGER;
+    SET @charpool = '12345678910AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz';
+    SET @i = 1;
+    SET @randomstr = '';
+    WHILE @i <= @count
+    BEGIN
+        here:
+        SET @counter = CAST(RAND() * 100 / 1.6 AS INTEGER);
+        IF @counter < 1
+            GOTO here;
+        SET @randomstr = @randomstr + SUBSTRING(@charpool, @counter, 1);
+        SET @i = @i + 1;
+    END;
+    SET @no = LEFT(@randomstr, ISNULL(@count, 180));
+    RETURN;
+END;
+```
+或
+```
+set @id=RIGHT(1000000+ISNULL(RIGHT(MAX(id),6),0)+1,7)
+```
